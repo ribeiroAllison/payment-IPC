@@ -1,11 +1,21 @@
-import { screen, BrowserWindow, ipcMain } from 'electron'
+import { screen, BrowserWindow, ipcMain, app } from 'electron'
 import Store from 'electron-store'
 const path = require('path');
 const sqlite3 = require('sqlite3');
 
 
+
 // Create or open the SQLite database connection in the main process
-const db = new sqlite3.Database('real.db'); // or specify a file path for a persistent database
+const dbPath = path.join(app.getAppPath(), '/database/real.db');
+
+console.log('Database path:', dbPath);
+
+const db = new sqlite3.Database(dbPath); // or specify a file path for a persistent database
+
+db.serialize(() => {
+  db.run('CREATE TABLE IF NOT EXISTS currency (id INT PRIMARY KEY, name TEXT, value FLOAT)');
+});
+
 
 
 

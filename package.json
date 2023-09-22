@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "nextron",
     "build": "nextron build",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "clean": "electron-builder clean"
   },
   "dependencies": {
     "electron-serve": "^1.1.0",
@@ -22,5 +23,17 @@
     "nextron": "^8.8.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "build": {
+    "files": [
+      "app/**",
+      "dist/**",
+      "main/**",
+      "node_modules/**",
+      "renderer/**",
+      "database/**"
+    ]
+    
   }
+  
 }
