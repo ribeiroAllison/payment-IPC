@@ -14,8 +14,7 @@
   "dependencies": {
     "electron-serve": "^1.1.0",
     "electron-store": "^8.1.0",
-    "pg": "^8.11.3",
-    "sqlite3": "^5.1.6"
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "electron": "^21.3.3",
