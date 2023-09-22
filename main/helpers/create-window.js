@@ -1,21 +1,71 @@
 import { screen, BrowserWindow, ipcMain, app } from 'electron'
 import Store from 'electron-store'
-const path = require('path');
-const sqlite3 = require('sqlite3');
+const { Client, Pool } = require('pg')
 
 
-
-// Create or open the SQLite database connection in the main process
-const dbPath = path.join(app.getAppPath(), '/database/real.db');
-
-console.log('Database path:', dbPath);
-
-const db = new sqlite3.Database(dbPath); // or specify a file path for a persistent database
-
-db.serialize(() => {
-  db.run('CREATE TABLE IF NOT EXISTS currency (id INT PRIMARY KEY, name TEXT, value FLOAT)');
+const adminClient = new Client({
+  user: 'postgres',      // Replace with your PostgreSQL username
+  host: 'localhost',     // Replace with your PostgreSQL host
+  password: 'postgres',  // Replace with your PostgreSQL password
+  port: 5432,            // PostgreSQL default port
 });
 
+adminClient.connect()
+  .then(() => {
+    console.log('Connected to PostgreSQL server');
+    
+    // Define the name of the new database you want to create
+    const dbName = 'real'; // Replace with your desired database name
+    
+    // Create the new database
+    adminClient.query(`CREATE DATABASE ${dbName}`)
+      .then(() => {
+        console.log(`Database '${dbName}' created successfully`);
+      })
+      .catch((err) => {
+        console.error('Error creating database:', err);
+      })
+      .finally(() => {
+        // Disconnect from the 'postgres' database
+        adminClient.end();
+      });
+  })
+  .catch((err) => {
+    console.error('Error connecting to PostgreSQL:', err);
+  });
+
+
+const pool = new Pool({
+ user: 'postgres',
+ host: 'localhost',
+ database: 'real',
+ password: 'postgres',
+ port: 5432,
+})
+
+const createTableQuery = `
+  CREATE TABLE IF NOT EXISTS currency (
+    id serial PRIMARY KEY,
+    name VARCHAR(255),
+    value FLOAT
+  );`;
+
+const createTables = async () => {
+  const client = await pool.connect();
+  try{
+    await client.query(createTableQuery);
+
+    console.log('tables criated susccessfully');
+
+  } catch(error){
+    console.error(error);
+
+  } finally {
+    client.release();
+  }
+}
+
+createTables();
 
 
 
@@ -93,29 +143,38 @@ export const createWindow = (windowName, options) => {
 
 
   ipcMain.handle('get-currencies', async (event) => {
-    return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM currency', [], (err, rows) => {
-        if (err) {
-          console.error(err);
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      });
-    });
+    const client = await pool.connect();
+    try {
+      
+      const result = await client.query('SELECT * FROM currency');
+  
+      // Return the result rows as an array
+      return result.rows;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      client.release(); // Release the client back to the pool when done
+    }
   });
-
+  
   ipcMain.handle('add-currencies', async (event, data) => {
     const { name, value } = data;
-    db.run('INSERT INTO currency (name, value) VALUES (?, ?)', [name, value], (err) => {
-      if (err) {
-        console.error(err);
-        event.reply('currency-added', { success: false, error: err.message });
-      } else {
+    const client = await pool.connect();
+    try {
+      
+      const result = await client.query('INSERT INTO currency (name, value) VALUES ($1, $2)', [name, value]);
+  
+      // Check if the insertion was successful
+      if (result.rowCount === 1) {
         console.log('Currency added successfully');
-
+      } else {
+        console.error('Failed to add currency');
       }
-    });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      client.release(); // Release the client back to the pool when done
+    }
   });
   
 
